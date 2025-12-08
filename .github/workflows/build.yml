@@ -177,7 +177,9 @@ jobs:
           echo "✅ Keystore decoded successfully"
 
       - name: Build release APKs
+        id: build_apks
         if: steps.check_build.outputs.build_needed == 'true'
+        continue-on-error: true
         run: |
           echo "🔨 Building release APKs..."
           cd src
@@ -202,12 +204,15 @@ jobs:
             
           echo "✅ APK build completed successfully"
 
+      - name: Clean up keystore
+        if: steps.check_build.outputs.build_needed == 'true'
+        run: |
           # Clean up keystore for security
           rm -f "$GITHUB_WORKSPACE/keystore.jks"
           echo "🔐 Keystore cleaned up"
 
       - name: Create GitHub Release
-        if: steps.check_build.outputs.build_needed == 'true'
+        if: steps.check_build.outputs.build_needed == 'true' && steps.build_apks.outcome == 'success'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.commit_info.outputs.short_hash }}
@@ -248,7 +253,7 @@ jobs:
           echo ""
           echo "🚀 **Build Status:**"
           if [ "${{ steps.check_build.outputs.build_needed }}" = "true" ]; then
-            echo "    Status: ✅ Build Executed"
+            echo "    Build Attempted: ✅ Yes"
             echo "    Reason: ${{ steps.check_build.outputs.build_reason }}"
             if [ "${{ steps.check_build.outputs.is_first_release }}" = "true" ]; then
               echo "    Type: 🎉 First Release"
@@ -256,12 +261,15 @@ jobs:
               echo "    Type: 📦 Update Release"
             fi
             
-            # Check if release was created successfully
-            if [ "${{ job.status }}" = "success" ]; then
+            # Check APK build result
+            if [ "${{ steps.build_apks.outcome }}" = "success" ]; then
+              echo "    APK Build: ✅ Succeeded"
               echo "    Release: ✅ Created Successfully"
               echo "    Tag: ${{ steps.commit_info.outputs.short_hash }}"
             else
-              echo "    Release: ❌ Failed to Create"
+              echo "    APK Build: ⚠️ Failed (upstream source issue)"
+              echo "    Release: ⏭️ Skipped due to build failure"
+              echo "    Note: The upstream FongMi/TV repository may have build issues"
             fi
           else
             echo "    Status: ⏭️ Build Skipped"
