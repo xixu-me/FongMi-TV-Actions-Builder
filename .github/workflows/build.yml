@@ -151,7 +151,7 @@ jobs:
 
       - name: Cache Gradle dependencies
         if: steps.check_build.outputs.build_needed == 'true'
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.gradle/caches
